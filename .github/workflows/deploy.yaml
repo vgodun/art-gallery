@@ -1,0 +1,176 @@
+name: Deploy to AWS ECR and ECS
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  check_folder_changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend_rds_changed: ${{ steps.check_rds.outputs.backend_rds_changed }}
+      backend_redis_changed: ${{ steps.check_redis.outputs.backend_redis_changed }}
+      frontend_changed: ${{ steps.check_frontend.outputs.frontend_changed }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Check if backend_rds files have changed
+        id: check_rds
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            backend_rds_changed:
+              - 'backend_rds/**'
+
+      - name: Check if backend_redis files have changed
+        id: check_redis
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            backend_redis_changed:
+              - 'backend_redis/**'
+
+      - name: Check if frontend files have changed
+        id: check_frontend
+        uses: dorny/paths-filter@v2
+        with:
+          filters: |
+            frontend_changed:
+              - 'frontend/**'
+
+  build_and_deploy_rds_main:
+    runs-on: ubuntu-latest
+    needs: check_folder_changes
+    if: needs.check_folder_changes.outputs.backend_rds_changed == 'true' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push Docker image for backend_rds
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t prod_rds:$IMAGE_TAG ./backend_rds
+          docker tag prod_rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
+
+      - name: Update ECS service with new image (backend_rds)
+        run: |
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:${{ github.sha }}
+          
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
+
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
+          
+          NEW_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" --query taskDefinition.taskDefinitionArn --output text --region ${{ secrets.AWS_REGION }})
+          
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER_NAME_PROD }}" \
+            --service "${{ secrets.ECS_SERVICE_NAME_RDS_PROD }}" \
+            --task-definition "$NEW_TASK_DEF_ARN" \
+            --region ${{ secrets.AWS_REGION }}
+
+
+  build_and_deploy_redis_main:
+    runs-on: ubuntu-latest
+    needs: check_folder_changes
+    if: needs.check_folder_changes.outputs.backend_redis_changed == 'true' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push Docker image for backend_redis
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t prod_redis:$IMAGE_TAG ./backend_redis
+          docker tag prod_redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
+
+      - name: Update ECS service with new image (backend_rds)
+        run: |
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:${{ github.sha }}
+          
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
+
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
+          
+          NEW_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" --query taskDefinition.taskDefinitionArn --output text --region ${{ secrets.AWS_REGION }})
+          
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER_NAME_PROD }}" \
+            --service "${{ secrets.ECS_SERVICE_NAME_REDIS_PROD }}" \
+            --task-definition "$NEW_TASK_DEF_ARN" \
+            --region ${{ secrets.AWS_REGION }}
+
+  deploy_frontend_to_s3_main:
+    runs-on: ubuntu-latest
+    needs: check_folder_changes
+    if: needs.check_folder_changes.outputs.frontend_changed == 'true' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        run: aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build and push Docker image for frontend
+        run: |
+          IMAGE_TAG=${{ github.sha }}
+          docker build -t prod_frontend:$IMAGE_TAG ./frontend
+          docker tag prod_frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:$IMAGE_TAG
+
+      - name: Update ECS service with new image (frontend)
+        run: |
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:${{ github.sha }}
+          
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-frontend --query taskDefinition --region ${{ secrets.AWS_REGION }})
+
+          NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
+          
+          NEW_TASK_DEFINITION=$(echo $NEW_TASK_DEFINITION | jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)')
+          
+          NEW_TASK_DEF_ARN=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEFINITION" --query taskDefinition.taskDefinitionArn --output text --region ${{ secrets.AWS_REGION }})
+          
+          aws ecs update-service \
+            --cluster "${{ secrets.ECS_CLUSTER_NAME_PROD }}" \
+            --service "${{ secrets.ECS_SERVICE_NAME_FRONTEND_PROD }}" \
+            --task-definition "$NEW_TASK_DEF_ARN" \
+            --region ${{ secrets.AWS_REGION }}
