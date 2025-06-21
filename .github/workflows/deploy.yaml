@@ -68,11 +68,16 @@ jobs:
           docker tag prod_rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
 
+      - name: Create CloudWatch Log Group
+        run: |
+          # Create log group if it doesn't exist
+          aws logs create-log-group --log-group-name /ecs/art-gallery-dev-ecs-backend-rds --region ${{ secrets.AWS_REGION }} || true
+
       - name: Update ECS service with new image (backend_rds)
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
@@ -113,11 +118,11 @@ jobs:
           docker tag prod_redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
 
-      - name: Update ECS service with new image (backend_rds)
+      - name: Update ECS service with new image (backend_redis)
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
@@ -161,7 +166,7 @@ jobs:
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition prod-task-frontend --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-frontend --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
