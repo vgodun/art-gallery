@@ -77,7 +77,7 @@ jobs:
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-rds:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition backend-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
@@ -122,7 +122,7 @@ jobs:
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-redis:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition backend-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
@@ -166,7 +166,7 @@ jobs:
         run: |
           LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-frontend:${{ github.sha }}
           
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-frontend --query taskDefinition --region ${{ secrets.AWS_REGION }})
+          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition frontend-ecs --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
           NEW_TASK_DEFINITION=$(echo $TASK_DEFINITION | jq --arg IMAGE "$LATEST_IMAGE_URI" '.containerDefinitions[0].image = $IMAGE')
           
