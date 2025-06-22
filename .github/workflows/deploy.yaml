@@ -64,9 +64,9 @@ jobs:
       - name: Build and push Docker image for backend_rds
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t prod_rds:$IMAGE_TAG ./backend_rds
-          docker tag prod_rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:$IMAGE_TAG
+          docker build -t art-gallery-dev-ecs-backend-rds:$IMAGE_TAG ./backend_rds
+          docker tag art-gallery-dev-ecs-backend-rds:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-rds:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-rds:$IMAGE_TAG
 
       - name: Create CloudWatch Log Group
         run: |
@@ -75,7 +75,7 @@ jobs:
 
       - name: Update ECS service with new image (backend_rds)
         run: |
-          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_rds:${{ github.sha }}
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-rds:${{ github.sha }}
           
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-rds --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
@@ -114,13 +114,13 @@ jobs:
       - name: Build and push Docker image for backend_redis
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t prod_redis:$IMAGE_TAG ./backend_redis
-          docker tag prod_redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:$IMAGE_TAG
+          docker build -t art-gallery-dev-ecs-backend-redis:$IMAGE_TAG ./backend_redis
+          docker tag art-gallery-dev-ecs-backend-redis:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-redis:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-redis:$IMAGE_TAG
 
       - name: Update ECS service with new image (backend_redis)
         run: |
-          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_redis:${{ github.sha }}
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-backend-redis:${{ github.sha }}
           
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-backend-redis --query taskDefinition --region ${{ secrets.AWS_REGION }})
 
@@ -158,13 +158,13 @@ jobs:
       - name: Build and push Docker image for frontend
         run: |
           IMAGE_TAG=${{ github.sha }}
-          docker build -t prod_frontend:$IMAGE_TAG ./frontend
-          docker tag prod_frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:$IMAGE_TAG
-          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:$IMAGE_TAG
+          docker build -t art-gallery-dev-ecs-frontend:$IMAGE_TAG ./frontend
+          docker tag art-gallery-dev-ecs-frontend:$IMAGE_TAG ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-frontend:$IMAGE_TAG
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-frontend:$IMAGE_TAG
 
       - name: Update ECS service with new image (frontend)
         run: |
-          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/prod_frontend:${{ github.sha }}
+          LATEST_IMAGE_URI=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/art-gallery-dev-ecs-frontend:${{ github.sha }}
           
           TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition art-gallery-dev-ecs-frontend --query taskDefinition --region ${{ secrets.AWS_REGION }})
 

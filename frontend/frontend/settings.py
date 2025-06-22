@@ -1,4 +1,3 @@
-
 """
 Settings for frontend project.
 """
@@ -19,7 +18,7 @@ SECRET_KEY = 'your-secret-key-here'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'backendredis', 'backendrds', 'backendredis:8000', 'backendrds:8000', '*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'backendredis', 'backendrds', 'backendredis:8001', 'backendrds:8001', '*']
 
 
 # Application definition
